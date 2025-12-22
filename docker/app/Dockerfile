@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONPATH=/app
 
 # Configure Debian mirror for Iran (using Iranian mirrors)
 RUN echo "deb http://mirror.arvancloud.ir/debian trixie main" > /etc/apt/sources.list && \

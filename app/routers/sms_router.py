@@ -8,8 +8,8 @@ from app.repositories.sms_repository import SMSRepository
 from app.repositories.account_repository import AccountRepository
 from app.schemas.sms_schema import SMSSendRequest, SMSResponse
 from app.dependencies import get_current_account
+from app.services.sms_service import SMSService
 from core.models import Account, SMS
-from core.publisher import SMSPublisher
 
 
 router = APIRouter(prefix="/sms", tags=["sms"])
@@ -38,7 +38,7 @@ async def send_sms(
         sms_type=sms_data.sms_type
     )
 
-    SMSPublisher.publish_sms(
+    SMSService.publish_to_queue(
         sms_id=sms.id,
         account_id=sms.account_id,
         phone_number=sms.phone_number,

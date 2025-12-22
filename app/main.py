@@ -32,12 +32,3 @@ async def health_check():
         "status": "healthy",
         "service": "sms_gateway"
     }
-
-
-@app.get("/")
-async def root():
-    return {
-        "message": "SMS Gateway API",
-        "docs": "/docs",
-        "health": "/health"
-    }

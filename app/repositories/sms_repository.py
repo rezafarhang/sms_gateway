@@ -36,3 +36,21 @@ class SMSRepository:
             select(SMS).where(SMS.id == sms_id)
         )
         return result.scalar_one_or_none()
+
+    async def update_status(
+        self,
+        sms_id: UUID,
+        status: str,
+        sent_at: Optional[datetime] = None
+    ) -> Optional[SMS]:
+        values = {"status": status}
+        if sent_at:
+            values["sent_at"] = sent_at
+
+        await self.db.execute(
+            update(SMS)
+            .where(SMS.id == sms_id)
+            .values(**values)
+        )
+        await self.db.commit()
+        return await self.get_by_id(sms_id)

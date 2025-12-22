@@ -9,4 +9,4 @@ celery_app = Celery(
 
 celery_app.config_from_object("config.celery")
 
-celery_app.autodiscover_tasks(["workers.tasks"])
+celery_app.autodiscover_tasks(['workers.tasks.sms_tasks'])

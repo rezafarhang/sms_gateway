@@ -10,7 +10,7 @@ class OperatorConfig(BaseModel):
 
 
 OPERATORS: List[OperatorConfig] = [
-    OperatorConfig(name="operator_1", url="http://localhost:9000/send", priority=1),
-    OperatorConfig(name="operator_2", url="http://localhost:9001/send", priority=2),
-    OperatorConfig(name="operator_3", url="http://localhost:9002/send", priority=3),
+    OperatorConfig(name="operator_1", url="http://0.0.0.0:9000/send", priority=1),
+    OperatorConfig(name="operator_2", url="http://0.0.0.0:9001/send", priority=2),
+    OperatorConfig(name="operator_3", url="http://0.0.0.0:9002/send", priority=3),
 ]

@@ -84,3 +84,31 @@ class SMSRepository:
         )
         await self.db.commit()
         return await self.get_by_id(sms_id)
+
+    async def batch_update_status(
+        self,
+        sent_ids: list[UUID],
+        failed_ids: list[UUID],
+        sent_at: Optional[datetime] = None
+    ) -> tuple[int, int]:
+        sent_count = 0
+        failed_count = 0
+
+        if sent_ids:
+            result = await self.db.execute(
+                update(SMS)
+                .where(SMS.id.in_(sent_ids))
+                .values(status=SMSStatus.SENT, sent_at=sent_at)
+            )
+            sent_count = result.rowcount
+
+        if failed_ids:
+            result = await self.db.execute(
+                update(SMS)
+                .where(SMS.id.in_(failed_ids))
+                .values(status=SMSStatus.FAILED)
+            )
+            failed_count = result.rowcount
+
+        await self.db.commit()
+        return sent_count, failed_count

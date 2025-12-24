@@ -7,7 +7,6 @@ class SMSService:
     @staticmethod
     def publish_to_queue(
         sms_id: UUID,
-        account_id: UUID,
         phone_number: str,
         message: str,
         sms_type: int
@@ -18,10 +17,8 @@ class SMSService:
             "workers.tasks.sms_tasks.process_sms",
             kwargs={
                 "sms_id": str(sms_id),
-                "account_id": str(account_id),
                 "phone_number": phone_number,
-                "message": message,
-                "sms_type": sms_type
+                "message": message
             },
             queue=queue
         )

@@ -27,8 +27,8 @@ async def get_current_account(
             balance=data['balance'],
             created_at=datetime.fromisoformat(data['created_at'])
         )
-        db.add(account)
-        return account
+        # Use merge to attach existing object to session without INSERT
+        return await db.merge(account)
 
     repo = AccountRepository(db)
     account = await repo.get_by_api_key(x_api_key)

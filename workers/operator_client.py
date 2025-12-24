@@ -35,12 +35,10 @@ class OperatorClient:
                         if data.get("status") == "sent":
                             return True, data.get("message_id"), None
                         else:
-                            # Operator returned failure status (not retryable)
                             error = data.get("error", "Unknown error")
                             logger.warning(f"Operator {operator.name} failed: {error}")
                             return False, None, error
                     else:
-                        # HTTP error, retry with backoff
                         logger.warning(f"Operator {operator.name} HTTP {response.status_code}, attempt {attempt + 1}/{max_retries}")
                         if attempt < max_retries - 1:
                             backoff_time = 2 ** attempt  # 1s, 2s, 4s
@@ -50,7 +48,6 @@ class OperatorClient:
                             return False, None, f"HTTP error {response.status_code}"
 
             except Exception as e:
-                # Network/timeout error, retry with backoff
                 logger.warning(f"Operator {operator.name} exception: {str(e)}, attempt {attempt + 1}/{max_retries}")
                 if attempt < max_retries - 1:
                     backoff_time = 2 ** attempt  # 1s, 2s, 4s
@@ -63,11 +60,6 @@ class OperatorClient:
 
     @staticmethod
     async def send_sms(phone_number: str, message: str) -> Tuple[bool, Optional[str], Optional[str]]:
-        """
-        Send SMS through operators with failover.
-        Each operator is retried 3 times with exponential backoff before moving to next.
-        Returns: (success: bool, message_id: str|None, error: str|None)
-        """
         for operator in sorted(OPERATORS, key=lambda x: x.priority):
             logger.info(f"Trying operator {operator.name} (priority {operator.priority})")
             success, message_id, error = await OperatorClient._send_with_backoff(
@@ -81,5 +73,4 @@ class OperatorClient:
                 logger.warning(f"Operator {operator.name} failed: {error}, trying next operator")
                 continue
 
-        # All operators failed
         return False, None, "All operators failed after retries"

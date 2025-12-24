@@ -21,6 +21,21 @@ class SMSTask(Task):
     retry_kwargs = {'max_retries': 3}
     retry_backoff = True
 
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+
+        celery_app.send_task(
+            'workers.tasks.dlq_tasks.store_failed_task',
+            kwargs={
+                'task_name': self.name,
+                'task_id': task_id,
+                'args': args,
+                'kwargs': kwargs,
+                'exception': str(exc),
+                'traceback': str(einfo)
+            },
+            queue='dlq'
+        )
+
 
 @celery_app.task(base=SMSTask, name="workers.tasks.sms_tasks.process_sms")
 def process_sms(sms_id: str, phone_number: str, message: str):

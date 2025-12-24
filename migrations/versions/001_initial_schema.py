@@ -32,7 +32,7 @@ def upgrade() -> None:
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('message', sa.String(length=70), nullable=False),
     sa.Column('sms_type', sa.SmallInteger(), nullable=False),
-    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('status', sa.SmallInteger(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('sent_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['account_id'], ['accounts.id'], ),

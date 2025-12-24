@@ -1,7 +1,7 @@
 class SMSStatus:
-    PENDING = "pending"
-    SENT = "sent"
-    FAILED = "failed"
+    PENDING = 1
+    SENT = 2
+    FAILED = 3
 
 
 class SMSType:

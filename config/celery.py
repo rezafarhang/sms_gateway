@@ -33,3 +33,10 @@ task_acks_late = True
 task_reject_on_worker_lost = True
 
 broker_connection_retry_on_startup = True
+
+beat_schedule = {
+    'batch-update-sms-status': {
+        'task': 'workers.tasks.sms_tasks.messages_satus_batch_update',
+        'schedule': 2.0,  # Run every 2 seconds
+    },
+}

@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models import SMS
-from core.consts import SMSStatus
+from core.consts import SMSStatus, SMSType
 
 
 class SMSRepository:
@@ -37,10 +37,40 @@ class SMSRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_by_account(
+        self,
+        account_id: UUID,
+        status: Optional[int] = None,
+        sms_type: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[list[SMS], int]:
+        query = select(SMS).where(SMS.account_id == account_id)
+
+        if status:
+            query = query.where(SMS.status == status)
+        if sms_type:
+            query = query.where(SMS.sms_type == sms_type)
+        if start_date:
+            query = query.where(SMS.created_at >= start_date)
+        if end_date:
+            query = query.where(SMS.created_at <= end_date)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await self.db.scalar(count_query)
+
+        query = query.order_by(SMS.created_at.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(query)
+        items = list(result.scalars().all())
+
+        return items, total or 0
+
     async def update_status(
         self,
         sms_id: UUID,
-        status: str,
+        status: int,
         sent_at: Optional[datetime] = None
     ) -> Optional[SMS]:
         values = {"status": status}

@@ -1,10 +1,15 @@
 import logging
-from datetime import datetime
-from uuid import UUID
+import asyncio
 from celery import Task
+from datetime import datetime
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from uuid import UUID
 from workers.celery_app import celery_app
 from workers.operator_client import OperatorClient
 from core.consts import SMSStatus
+from config.settings import settings
+from app.repositories.sms_repository import SMSRepository
 
 logger = logging.getLogger(__name__)
 
@@ -16,17 +21,7 @@ class SMSTask(Task):
 
 
 @celery_app.task(base=SMSTask, name="workers.tasks.sms_tasks.process_sms")
-def process_sms(sms_id: str, account_id: str, phone_number: str, message: str, sms_type: int):
-    """
-    Process SMS by sending to operator and updating status.
-    Runs asynchronously in Celery worker.
-    """
-    import asyncio
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-    from sqlalchemy.orm import sessionmaker
-    from config.settings import settings
-    from app.repositories.sms_repository import SMSRepository
-
+def process_sms(sms_id: str, phone_number: str, message: str):
     async def _process():
         engine = create_async_engine(settings.DATABASE_URL, echo=False)
         async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -34,7 +29,6 @@ def process_sms(sms_id: str, account_id: str, phone_number: str, message: str, s
         async with async_session() as session:
             repo = SMSRepository(session)
 
-            # Send SMS through operators with failover
             success, message_id, error = await OperatorClient.send_sms(phone_number, message)
 
             if success:

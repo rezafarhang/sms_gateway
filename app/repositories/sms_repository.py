@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select, update, func, case
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models import SMS
-from core.consts import SMSStatus, SMSType
+from core.consts import SMSStatus
 
 
 class SMSRepository:

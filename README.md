@@ -16,7 +16,7 @@ High-throughput SMS gateway supporting ~100M messages/day with regular and expre
 #### Table Partitioning (Range by `created_at`)
 - **Decision**: Monthly partitions on `sms` table.
 - **Rationale**:
-  - ~100M messages/day = ~3B/month ’ single table becomes unmaintainable
+  - ~100M messages/day = ~3B/month ï¿½ single table becomes unmaintainable
   - Partition pruning: queries filtered by date only scan relevant partitions
   - Easy archival: drop old partitions instead of expensive DELETEs
   - **Trade-off**: Adds operational complexity (automated partition creation needed)
@@ -59,12 +59,12 @@ WHERE id = $1 AND balance >= 1
 
 #### Redis-Based Batching
 ```
-Worker ’ Send to Operator ’ Push result to Redis list
-Beat Task (every 2s) ’ Pull 10K results ’ Batch UPDATE DB
+Worker ï¿½ Send to Operator ï¿½ Push result to Redis list
+Beat Task (every 2s) ï¿½ Pull 10K results ï¿½ Batch UPDATE DB
 ```
 - **Decision**: Accumulate status updates in Redis, batch write every 2 seconds.
 - **Rationale**:
-  - 1000 individual UPDATEs ’ 1 batch UPDATE (100x fewer DB round-trips)
+  - 1000 individual UPDATEs ï¿½ 1 batch UPDATE (100x fewer DB round-trips)
   - Single transaction for atomicity
   - **Trade-off**: 2-second latency for status updates (acceptable for analytics)
 
@@ -95,10 +95,10 @@ except:
 
 #### Automatic Requeue
 - **`task_acks_late = True`**: Tasks acknowledged only after completion.
-- **Rationale**: Worker crash ’ RabbitMQ auto-requeues unprocessed tasks. Zero message loss during deployments.
+- **Rationale**: Worker crash ï¿½ RabbitMQ auto-requeues unprocessed tasks. Zero message loss during deployments.
 
 ### 7. **Operator Failover**
-- **Priority-based routing**: Try operator_1 ’ operator_2 ’ operator_3
+- **Priority-based routing**: Try operator_1 ï¿½ operator_2 ï¿½ operator_3
 - **Circuit breaker**: 3 attempts per operator with exponential backoff
 - **Trade-off**: Increases delivery latency (up to 9 retries total) but maximizes success rate
 
@@ -108,7 +108,7 @@ except:
 
 | Optimization | Impact | Trade-off |
 |-------------|---------|-----------|
-| Redis API key cache | 95% cache hit ’ ~10x faster auth | 12-hour stale data |
+| Redis API key cache | 95% cache hit ï¿½ ~10x faster auth | 12-hour stale data |
 | Batch DB updates | 100x fewer queries | 2-second status delay |
 | Prefetch count=1000 | Reduced network overhead | Requeue overhead on crash |
 | Table partitioning | Query time O(1/12) for date filters | Operational complexity |
@@ -117,9 +117,12 @@ except:
 
 ## Scalability Considerations
 
-- **Horizontal scaling**: Stateless workers ’ add more containers
+- **Horizontal scaling**: Stateless workers ï¿½ add more containers
 - **Queue separation**: Express (SLA < 500ms) and regular queues
-- **Database**: Partitioning supports 100M+/day. Further scaling via sharding by `account_id`
+- **Database**:
+  - Partitioning supports 100M+/day
+  - **Read replicas** for report queries (offload analytics from primary)
+  - Further scaling via sharding by `account_id`
 - **Redis**: AOF persistence with optional Sentinel for HA
 
 ---
@@ -127,7 +130,7 @@ except:
 ## System Guarantees
 
  **At-least-once delivery**: `task_acks_late` ensures no message loss
- **Idempotency**: SMS `id` is UUID ’ safe to retry
+ **Idempotency**: SMS `id` is UUID ï¿½ safe to retry
  **Consistency**: Balance deduction is atomic (ACID)
  **Availability**: Graceful degradation when Redis/operators fail
 
@@ -141,3 +144,131 @@ except:
 - **RabbitMQ 3**: Message broker (express/regular queues)
 - **Celery**: Task queue with retry/DLQ support
 - **Docker Compose**: Containerized deployment
+
+---
+
+## Future Enhancements (Not Implemented)
+
+### 1. **Rate Limiting**
+**Goal**: Prevent single account from monopolizing resources; ensure fair resource allocation.
+
+**Design**:
+- **Token bucket algorithm** per account (Redis-based)
+```python
+# Allow 1000 SMS/minute per account
+key = f"ratelimit:{account_id}:{current_minute}"
+if redis.incr(key) > 1000:
+    raise HTTPException(429, "Rate limit exceeded")
+redis.expire(key, 120)  # Keep for 2 minutes
+```
+- **Benefits**: Protects system from abuse, ensures SLA for all users
+- **Trade-off**: Adds Redis latency to request path (~1ms)
+
+**Alternative**: Sliding window with sorted sets for more accurate limits.
+
+---
+
+### 2. **Circuit Breaker for Database Fallback**
+**Problem**: When Redis fails, all workers fall back to direct DB updates â†’ potential DB overload.
+
+**Design**:
+```python
+class DBCircuitBreaker:
+    # CLOSED: Normal operation
+    # OPEN: Too many failures, reject immediately
+    # HALF_OPEN: Test if DB recovered
+
+    if state == OPEN:
+        return 503  # Fail fast, don't overwhelm DB
+```
+
+**Strategy**:
+- Monitor DB update failure rate
+- If > 50% fail in 30s window â†’ OPEN circuit (reject new fallbacks)
+- After 60s timeout â†’ HALF_OPEN (allow 10 test requests)
+- If tests succeed â†’ CLOSED (resume normal)
+
+**Benefits**: Prevents cascading failures when DB is struggling.
+
+---
+
+### 3. **Intelligent Report Caching (Historical vs Live Data)**
+**Challenge**: Report queries are expensive, but requirements differ by time range.
+
+#### Cache Registry Pattern
+
+**Core Idea**: Split time-based queries into cacheable windows based on data mutability.
+
+**Strategy**:
+
+**1. Time Window Segmentation**
+- Divide query range into 10-minute buckets (aligned to clock: 00:00, 00:10, 00:20, etc.)
+- Each bucket represents data for a specific 10-minute period
+- Example: Query for "today 09:00-11:00" â†’ 12 buckets (09:00-09:10, 09:10-09:20, ..., 10:50-11:00)
+
+**2. Immutability Classification**
+- **Old buckets** (> 10 minutes ago): Data is **immutable** (no new SMS can arrive in the past)
+  - Cache 12 hours for safety)
+  - Hit rate: ~99% for repeated queries
+- **Current bucket** (last 10 minutes): Data is **mutable** (actively receiving SMS)
+  - Always query database (never cache)
+  - Ensures fresh data for real-time monitoring
+
+**3. Query Execution**
+- Split user's date range into 10-minute buckets
+- Check cache registry for completed (old) buckets
+- Query DB only for:
+  - Uncached old buckets (cache miss on first query)
+  - Current bucket (always live data)
+- Merge cached + fresh results
+
+**Example Scenario**:
+```
+Current time: 14:35
+Query range: Today 12:00 - 14:35
+
+Buckets:
+- 12:00-12:10 â†’ Cache hit (immutable)
+- 12:10-12:20 â†’ Cache hit (immutable)
+- ...
+- 14:20-14:30 â†’ Cache hit (immutable)
+- 14:30-14:35 â†’ DB query (current bucket, mutable)
+
+Result: 14 cache hits + 1 DB query vs 15 DB queries
+Cache hit rate: 93%
+```
+
+**Why 10-Minute Windows?**
+- **Too small** (e.g., 1 minute): Cache overhead exceeds benefit (144 keys/day)
+- **Too large** (e.g., 1 hour): Current bucket delay too long (data stale for 59 minutes)
+- **10 minutes**: Sweet spot for analytics workload (balance between freshness and cache efficiency)
+
+**Benefits**:
+- **Repeated queries**: Near-instant response from cache (no DB load)
+- **Live data accuracy**: Current bucket always fresh
+- **Scalability**: Cache grows linearly with time (144 buckets/day/account), not with query volume
+- **Range queries**: Most of the range served from cache, only tail needs DB query
+
+---
+
+### 4. **Deduplication mechanism**
+**Goal**: Prevent duplicate SMS from retries/network issues.
+
+
+**Benefits**: Client can safely retry without creating duplicates.
+
+---
+
+### 5. **Dead Letter Queue Processor**
+**Enhancement**: Automated DLQ monitoring and selective retry.
+
+**Design**:
+- Dashboard to view failed tasks
+- Auto-retry after operator recovers (detect via health checks)
+- Alert on DLQ size threshold (> 1000 tasks)
+- Bulk requeue with filtering (e.g., "retry all timeout errors")
+
+**Benefit**: Reduces manual intervention for transient operator issues.
+
+---
+

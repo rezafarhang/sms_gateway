@@ -21,6 +21,7 @@ task_routes = {
 task_queues = (
     Queue('express'),
     Queue('regular'),
+    Queue('dlq'),  # Dead Letter Queue for failed tasks
 )
 
 task_default_queue = 'regular'

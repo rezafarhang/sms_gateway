@@ -2,13 +2,16 @@ from kombu import Queue
 from config.settings import settings
 
 broker_url = settings.CELERY_BROKER_URL
-result_backend = settings.CELERY_RESULT_BACKEND
+result_backend = None
 
 task_serializer = 'json'
 result_serializer = 'json'
 accept_content = ['json']
 timezone = 'UTC'
 enable_utc = True
+
+task_ignore_result = True
+result_expires = 0
 
 task_routes = {
     'workers.tasks.sms_tasks.send_sms_express': {'queue': 'express'},
@@ -22,7 +25,8 @@ task_queues = (
 
 task_default_queue = 'regular'
 
-worker_prefetch_multiplier = 4
+worker_prefetch_multiplier = 1
+worker_prefetch_count = 1000
 worker_max_tasks_per_child = 1000
 
 task_acks_late = True

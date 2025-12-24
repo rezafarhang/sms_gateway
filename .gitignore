@@ -40,3 +40,4 @@ htmlcov/
 
 docker/envs/.env.local
 *.log
+celerybeat-schedule

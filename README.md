@@ -2,6 +2,7 @@
 
 ## Overview
 High-throughput SMS gateway supporting ~100M messages/day with regular and express delivery (SLA < 500ms for express).
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/34506b6f-0c16-45eb-9f3c-6147d337c57e" />
 
 ---
 

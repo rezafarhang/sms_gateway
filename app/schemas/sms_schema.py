@@ -23,7 +23,7 @@ class SMSResponse(BaseModel):
     phone_number: str
     message: str
     sms_type: int
-    status: str
+    status: int
     created_at: datetime
     sent_at: Optional[datetime] = None
 

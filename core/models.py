@@ -32,7 +32,7 @@ class SMS(Base):
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     message: Mapped[str] = mapped_column(String(70), nullable=False)
     sms_type: Mapped[int] = mapped_column(SmallInteger, default=SMSType.REGULAR, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default=SMSStatus.PENDING, nullable=False)
+    status: Mapped[int] = mapped_column(SmallInteger, default=SMSStatus.PENDING, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 

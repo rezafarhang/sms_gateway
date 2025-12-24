@@ -41,7 +41,6 @@ async def send_sms(
 
     SMSService.publish_to_queue(
         sms_id=sms.id,
-        account_id=sms.account_id,
         phone_number=sms.phone_number,
         message=sms.message,
         sms_type=sms.sms_type
